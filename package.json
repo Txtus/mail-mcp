@@ -1,0 +1,24 @@
+{
+  "name": "imap-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP Server for IMAP/SMTP email access — lets Claude read, search, and send emails from any mailbox",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "config": "tsx src/configServer.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "dotenv": "^16.4.5",
+    "imapflow": "^1.0.162",
+    "nodemailer": "^8.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/nodemailer": "^6.4.15",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4"
+  }
+}

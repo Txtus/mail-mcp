@@ -1,0 +1,41 @@
+{
+  "default": "personal",
+  "accounts": {
+    "personal": {
+      "name": "Personal",
+      "imap": {
+        "host": "mail.your-provider.com",
+        "port": 993,
+        "user": "you@personal.com",
+        "password": "your-password",
+        "tls": true
+      },
+      "smtp": {
+        "host": "mail.your-provider.com",
+        "port": 465,
+        "user": "you@personal.com",
+        "password": "your-password",
+        "tls": true,
+        "fromName": "Your Name"
+      }
+    },
+    "work": {
+      "name": "Work",
+      "imap": {
+        "host": "mail.company.com",
+        "port": 993,
+        "user": "you@company.com",
+        "password": "work-password",
+        "tls": true
+      },
+      "smtp": {
+        "host": "mail.company.com",
+        "port": 465,
+        "user": "you@company.com",
+        "password": "work-password",
+        "tls": true,
+        "fromName": "Your Name (Work)"
+      }
+    }
+  }
+}
