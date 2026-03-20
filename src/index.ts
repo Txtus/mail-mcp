@@ -9,6 +9,9 @@ import { markReadSchema, handleMarkRead, moveEmailSchema, handleMoveEmail, listF
 import { moveEmailsSchema, handleMoveEmails, markEmailsReadSchema, handleMarkEmailsRead, deleteEmailsSchema, handleDeleteEmails, createFolderSchema, handleCreateFolder } from "./tools/bulkOps.js";
 import { listAttachmentsSchema, handleListAttachments, downloadAttachmentSchema, handleDownloadAttachment } from "./tools/attachments.js";
 import { listAccountsSchema, handleListAccounts } from "./tools/listAccounts.js";
+import { getStatsSchema, handleGetStats } from "./tools/stats.js";
+import { contactHistorySchema, handleContactHistory } from "./tools/contactHistory.js";
+import { listDraftsSchema, handleListDrafts, createDraftSchema, handleCreateDraft, deleteDraftSchema, handleDeleteDraft } from "./tools/drafts.js";
 
 const server = new McpServer({ name: "imap-mcp-server", version: "2.0.0" });
 
@@ -41,6 +44,15 @@ server.tool("create_folder",    "Create a new IMAP folder", createFolderSchema.s
 // ── Attachments ───────────────────────────────────────────────────────────────
 server.tool("list_attachments",     "List all attachments in an email", listAttachmentsSchema.shape, handleListAttachments);
 server.tool("download_attachment",  "Download an attachment and save it to the downloads/ folder", downloadAttachmentSchema.shape, handleDownloadAttachment);
+
+// ── Stats & insights ──────────────────────────────────────────────────────────
+server.tool("get_stats",          "Get mailbox statistics: unread counts, folder totals, INBOX activity this month, and top senders", getStatsSchema.shape, handleGetStats);
+server.tool("get_contact_history","Get the full email history with a specific person — all sent and received emails", contactHistorySchema.shape, handleContactHistory);
+
+// ── Drafts ────────────────────────────────────────────────────────────────────
+server.tool("list_drafts",        "List all saved email drafts", listDraftsSchema.shape, handleListDrafts);
+server.tool("create_draft",       "Save a new email draft to the Drafts folder (without sending)", createDraftSchema.shape, handleCreateDraft);
+server.tool("delete_draft",       "Permanently delete a draft by UID", deleteDraftSchema.shape, handleDeleteDraft);
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 async function main() {

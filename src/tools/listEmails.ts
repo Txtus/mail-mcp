@@ -18,17 +18,17 @@ export async function handleListEmails(args: z.infer<typeof listEmailsSchema>) {
   try {
     if (args.account_type) {
       const emails = await listEmailsByType({ ...args, type: args.account_type });
-      if (emails.length === 0) return { content: [{ type: "text", text: "No emails found." }] };
+      if (emails.length === 0) return { content: [{ type: "text" as const, text: "No emails found." }] };
       const lines = emails.map(formatEmail.bind(null, true));
-      return { content: [{ type: "text", text: lines.join("\n\n") }] };
+      return { content: [{ type: "text" as const, text: lines.join("\n\n") }] };
     }
 
     const emails = await listEmails(args);
-    if (emails.length === 0) return { content: [{ type: "text", text: "No emails found." }] };
+    if (emails.length === 0) return { content: [{ type: "text" as const, text: "No emails found." }] };
     const lines = emails.map(formatEmail.bind(null, false));
-    return { content: [{ type: "text", text: lines.join("\n\n") }] };
+    return { content: [{ type: "text" as const, text: lines.join("\n\n") }] };
   } catch (err: any) {
-    return { content: [{ type: "text", text: `Error: ${err?.message ?? String(err)}` }], isError: true };
+    return { content: [{ type: "text" as const, text: `Error: ${err?.message ?? String(err)}` }], isError: true };
   }
 }
 

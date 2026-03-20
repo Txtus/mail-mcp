@@ -10,9 +10,9 @@ export const markReadSchema = z.object({
 export async function handleMarkRead(args: z.infer<typeof markReadSchema>) {
   try {
     await markEmailRead(args.uid, args.folder, args.account);
-    return { content: [{ type: "text", text: `Email UID ${args.uid} marked as read.` }] };
+    return { content: [{ type: "text" as const, text: `Email UID ${args.uid} marked as read.` }] };
   } catch (err: any) {
-    return { content: [{ type: "text", text: `Error: ${err?.message ?? String(err)}` }], isError: true };
+    return { content: [{ type: "text" as const, text: `Error: ${err?.message ?? String(err)}` }], isError: true };
   }
 }
 
@@ -26,9 +26,9 @@ export const moveEmailSchema = z.object({
 export async function handleMoveEmail(args: z.infer<typeof moveEmailSchema>) {
   try {
     await moveEmail(args.uid, args.from_folder, args.to_folder, args.account);
-    return { content: [{ type: "text", text: `Email UID ${args.uid} moved from "${args.from_folder}" to "${args.to_folder}".` }] };
+    return { content: [{ type: "text" as const, text: `Email UID ${args.uid} moved from "${args.from_folder}" to "${args.to_folder}".` }] };
   } catch (err: any) {
-    return { content: [{ type: "text", text: `Error: ${err?.message ?? String(err)}` }], isError: true };
+    return { content: [{ type: "text" as const, text: `Error: ${err?.message ?? String(err)}` }], isError: true };
   }
 }
 
@@ -39,8 +39,8 @@ export const listFoldersSchema = z.object({
 export async function handleListFolders(args: { account?: string }) {
   try {
     const folders = await listFolders(args.account);
-    return { content: [{ type: "text", text: `Available folders:\n${folders.join("\n")}` }] };
+    return { content: [{ type: "text" as const, text: `Available folders:\n${folders.join("\n")}` }] };
   } catch (err: any) {
-    return { content: [{ type: "text", text: `Error: ${err?.message ?? String(err)}` }], isError: true };
+    return { content: [{ type: "text" as const, text: `Error: ${err?.message ?? String(err)}` }], isError: true };
   }
 }

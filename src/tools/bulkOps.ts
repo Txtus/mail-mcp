@@ -11,9 +11,9 @@ export const moveEmailsSchema = z.object({
 export async function handleMoveEmails(args: z.infer<typeof moveEmailsSchema>) {
   try {
     const count = await moveEmails(args.uids, args.from_folder, args.to_folder, args.account);
-    return { content: [{ type: "text", text: `Moved ${count} email(s) from "${args.from_folder}" to "${args.to_folder}".` }] };
+    return { content: [{ type: "text" as const, text: `Moved ${count} email(s) from "${args.from_folder}" to "${args.to_folder}".` }] };
   } catch (err: any) {
-    return { content: [{ type: "text", text: `Error: ${err?.message ?? String(err)}` }], isError: true };
+    return { content: [{ type: "text" as const, text: `Error: ${err?.message ?? String(err)}` }], isError: true };
   }
 }
 
@@ -26,9 +26,9 @@ export const markEmailsReadSchema = z.object({
 export async function handleMarkEmailsRead(args: z.infer<typeof markEmailsReadSchema>) {
   try {
     const count = await markEmailsRead(args.uids, args.folder, args.account);
-    return { content: [{ type: "text", text: `Marked ${count} email(s) as read.` }] };
+    return { content: [{ type: "text" as const, text: `Marked ${count} email(s) as read.` }] };
   } catch (err: any) {
-    return { content: [{ type: "text", text: `Error: ${err?.message ?? String(err)}` }], isError: true };
+    return { content: [{ type: "text" as const, text: `Error: ${err?.message ?? String(err)}` }], isError: true };
   }
 }
 
@@ -41,9 +41,9 @@ export const deleteEmailsSchema = z.object({
 export async function handleDeleteEmails(args: z.infer<typeof deleteEmailsSchema>) {
   try {
     const count = await deleteEmails(args.uids, args.folder, args.account);
-    return { content: [{ type: "text", text: `Deleted ${count} email(s) (moved to Trash).` }] };
+    return { content: [{ type: "text" as const, text: `Deleted ${count} email(s) (moved to Trash).` }] };
   } catch (err: any) {
-    return { content: [{ type: "text", text: `Error: ${err?.message ?? String(err)}` }], isError: true };
+    return { content: [{ type: "text" as const, text: `Error: ${err?.message ?? String(err)}` }], isError: true };
   }
 }
 
@@ -55,8 +55,8 @@ export const createFolderSchema = z.object({
 export async function handleCreateFolder(args: z.infer<typeof createFolderSchema>) {
   try {
     await createFolder(args.name, args.account);
-    return { content: [{ type: "text", text: `Folder "${args.name}" created successfully.` }] };
+    return { content: [{ type: "text" as const, text: `Folder "${args.name}" created successfully.` }] };
   } catch (err: any) {
-    return { content: [{ type: "text", text: `Error: ${err?.message ?? String(err)}` }], isError: true };
+    return { content: [{ type: "text" as const, text: `Error: ${err?.message ?? String(err)}` }], isError: true };
   }
 }

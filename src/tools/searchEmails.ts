@@ -12,20 +12,20 @@ export async function handleSearchEmails(args: z.infer<typeof searchEmailsSchema
   try {
     if (args.account_type) {
       const emails = await searchEmailsByType(args.query, args.account_type, args.folder);
-      if (emails.length === 0) return { content: [{ type: "text", text: `No emails found for query: "${args.query}"` }] };
+      if (emails.length === 0) return { content: [{ type: "text" as const, text: `No emails found for query: "${args.query}"` }] };
       const lines = emails.map(
         (e) => `[${e.account}] [UID ${e.uid}] ${e.seen ? "✓" : "●"} ${e.date.slice(0, 10)} | From: ${e.from}\n  Subject: ${e.subject}`
       );
-      return { content: [{ type: "text", text: `Found ${emails.length} result(s) across all ${args.account_type} accounts:\n\n${lines.join("\n\n")}` }] };
+      return { content: [{ type: "text" as const, text: `Found ${emails.length} result(s) across all ${args.account_type} accounts:\n\n${lines.join("\n\n")}` }] };
     }
 
     const emails = await searchEmails(args.query, args.folder, args.account);
-    if (emails.length === 0) return { content: [{ type: "text", text: `No emails found for query: "${args.query}"` }] };
+    if (emails.length === 0) return { content: [{ type: "text" as const, text: `No emails found for query: "${args.query}"` }] };
     const lines = emails.map(
       (e) => `[UID ${e.uid}] ${e.seen ? "✓" : "●"} ${e.date.slice(0, 10)} | From: ${e.from}\n  Subject: ${e.subject}`
     );
-    return { content: [{ type: "text", text: `Found ${emails.length} result(s):\n\n${lines.join("\n\n")}` }] };
+    return { content: [{ type: "text" as const, text: `Found ${emails.length} result(s):\n\n${lines.join("\n\n")}` }] };
   } catch (err: any) {
-    return { content: [{ type: "text", text: `Error: ${err?.message ?? String(err)}` }], isError: true };
+    return { content: [{ type: "text" as const, text: `Error: ${err?.message ?? String(err)}` }], isError: true };
   }
 }

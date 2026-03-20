@@ -11,16 +11,16 @@ export async function handleListAttachments(args: z.infer<typeof listAttachments
   try {
     const attachments = await listAttachments(args.uid, args.folder, args.account);
     if (attachments.length === 0) {
-      return { content: [{ type: "text", text: `Email UID ${args.uid} has no attachments.` }] };
+      return { content: [{ type: "text" as const, text: `Email UID ${args.uid} has no attachments.` }] };
     }
     const lines = attachments.map(
       (a) => `[ID: ${a.id}] ${a.filename}  (${a.contentType}, ${formatSize(a.size)})`
     );
     return {
-      content: [{ type: "text", text: `Attachments in email UID ${args.uid}:\n\n${lines.join("\n")}` }],
+      content: [{ type: "text" as const, text: `Attachments in email UID ${args.uid}:\n\n${lines.join("\n")}` }],
     };
   } catch (err: any) {
-    return { content: [{ type: "text", text: `Error: ${err?.message ?? String(err)}` }], isError: true };
+    return { content: [{ type: "text" as const, text: `Error: ${err?.message ?? String(err)}` }], isError: true };
   }
 }
 
@@ -36,12 +36,12 @@ export async function handleDownloadAttachment(args: z.infer<typeof downloadAtta
     const result = await downloadAttachment(args.uid, args.attachment_id, args.folder, args.account);
     return {
       content: [{
-        type: "text",
+        type: "text" as const,
         text: `Downloaded "${result.filename}" (${formatSize(result.size)}) to:\n${result.path}`,
       }],
     };
   } catch (err: any) {
-    return { content: [{ type: "text", text: `Error: ${err?.message ?? String(err)}` }], isError: true };
+    return { content: [{ type: "text" as const, text: `Error: ${err?.message ?? String(err)}` }], isError: true };
   }
 }
 

@@ -14,9 +14,9 @@ export const sendEmailSchema = z.object({
 export async function handleSendEmail(args: z.infer<typeof sendEmailSchema>) {
   try {
     const messageId = await sendEmail(args);
-    return { content: [{ type: "text", text: `Email sent successfully. Message-ID: ${messageId}` }] };
+    return { content: [{ type: "text" as const, text: `Email sent successfully. Message-ID: ${messageId}` }] };
   } catch (err: any) {
-    return { content: [{ type: "text", text: `Error: ${err?.message ?? String(err)}` }], isError: true };
+    return { content: [{ type: "text" as const, text: `Error: ${err?.message ?? String(err)}` }], isError: true };
   }
 }
 
@@ -39,9 +39,9 @@ export async function handleReplyEmail(args: z.infer<typeof replyEmailSchema>) {
       inReplyTo: args.inReplyTo,
       references: args.references,
     });
-    return { content: [{ type: "text", text: `Reply sent successfully. Message-ID: ${messageId}` }] };
+    return { content: [{ type: "text" as const, text: `Reply sent successfully. Message-ID: ${messageId}` }] };
   } catch (err: any) {
-    return { content: [{ type: "text", text: `Error: ${err?.message ?? String(err)}` }], isError: true };
+    return { content: [{ type: "text" as const, text: `Error: ${err?.message ?? String(err)}` }], isError: true };
   }
 }
 
@@ -57,7 +57,7 @@ export async function handleForwardEmail(args: z.infer<typeof forwardEmailSchema
   try {
     const original = await getEmail(args.uid, args.folder, args.account);
     if (!original) {
-      return { content: [{ type: "text", text: `Email UID ${args.uid} not found.` }], isError: true };
+      return { content: [{ type: "text" as const, text: `Email UID ${args.uid} not found.` }], isError: true };
     }
 
     const subject = original.subject.startsWith("Fwd:")
@@ -82,8 +82,8 @@ export async function handleForwardEmail(args: z.infer<typeof forwardEmailSchema
       text,
       references: original.messageId,
     });
-    return { content: [{ type: "text", text: `Email forwarded successfully. Message-ID: ${messageId}` }] };
+    return { content: [{ type: "text" as const, text: `Email forwarded successfully. Message-ID: ${messageId}` }] };
   } catch (err: any) {
-    return { content: [{ type: "text", text: `Error: ${err?.message ?? String(err)}` }], isError: true };
+    return { content: [{ type: "text" as const, text: `Error: ${err?.message ?? String(err)}` }], isError: true };
   }
 }

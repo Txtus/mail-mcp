@@ -11,7 +11,7 @@ export async function handleGetEmail(args: z.infer<typeof getEmailSchema>) {
   try {
     const email = await getEmail(args.uid, args.folder, args.account);
     if (!email) {
-      return { content: [{ type: "text", text: `Email with UID ${args.uid} not found.` }] };
+      return { content: [{ type: "text" as const, text: `Email with UID ${args.uid} not found.` }] };
     }
     const text = [
       `From: ${email.from}`,
@@ -26,8 +26,8 @@ export async function handleGetEmail(args: z.infer<typeof getEmailSchema>) {
     ]
       .filter((l) => l !== null)
       .join("\n");
-    return { content: [{ type: "text", text }] };
+    return { content: [{ type: "text" as const, text }] };
   } catch (err: any) {
-    return { content: [{ type: "text", text: `Error: ${err?.message ?? String(err)}` }], isError: true };
+    return { content: [{ type: "text" as const, text: `Error: ${err?.message ?? String(err)}` }], isError: true };
   }
 }

@@ -105,7 +105,8 @@ export async function listEmails(options: ListEmailsOptions): Promise<EmailSumma
     const useSearch = Object.keys(criteria).length > 0;
     let uids: number[] | null = null;
     if (useSearch) {
-      uids = await client.search(criteria, { uid: true });
+      const raw = await client.search(criteria, { uid: true });
+      uids = raw === false ? [] : raw;
       if (uids.length === 0) { await client.logout(); return []; }
     }
 
@@ -117,6 +118,7 @@ export async function listEmails(options: ListEmailsOptions): Promise<EmailSumma
       uid: true, flags: true, envelope: true, size: true,
       ...(options.has_attachments !== undefined ? { bodyStructure: true } : {}),
     }, fetchOptions)) {
+      if (!msg.envelope || !msg.flags) continue;
       const from = msg.envelope.from?.[0]
         ? `${msg.envelope.from[0].name ?? ""} <${msg.envelope.from[0].address}>`.trim()
         : "";
@@ -125,7 +127,7 @@ export async function listEmails(options: ListEmailsOptions): Promise<EmailSumma
       if (options.from    && !from.toLowerCase().includes(options.from.toLowerCase()))       continue;
       if (options.subject && !subject.toLowerCase().includes(options.subject.toLowerCase())) continue;
 
-      const attachments = msg.bodyStructure ? extractAttachmentList(msg.bodyStructure) : [];
+      const attachments = msg.bodyStructure ? extractAttachmentList(msg.bodyStructure as any) : [];
       const hasAttachments = attachments.length > 0;
 
       if (options.has_attachments === true  && !hasAttachments) continue;
@@ -167,6 +169,7 @@ export async function getEmail(uid: number, folder = "INBOX", account?: string):
     }, { uid: true });
 
     if (!msg) { await client.logout(); return null; }
+    if (!msg.envelope || !msg.flags) { await client.logout(); return null; }
 
     const raw = msg.source?.toString() ?? "";
     const bodyText = extractBody(raw, "text/plain");
@@ -215,13 +218,15 @@ export async function searchEmails(query: string, folder = "INBOX", account?: st
     await client.connect();
     await client.mailboxOpen(folder, { readOnly: true });
 
-    const uids = await client.search({ text: query }, { uid: true });
+    const rawUids = await client.search({ text: query }, { uid: true });
+    const uids = rawUids === false ? [] : rawUids;
     if (uids.length === 0) { await client.logout(); return []; }
 
     const results: EmailSummary[] = [];
     for await (const msg of client.fetch(uids.slice(-50), {
       uid: true, flags: true, envelope: true, size: true,
     }, { uid: true })) {
+      if (!msg.envelope || !msg.flags) continue;
       const from = msg.envelope.from?.[0]
         ? `${msg.envelope.from[0].name ?? ""} <${msg.envelope.from[0].address}>`.trim()
         : "";
@@ -389,7 +394,7 @@ export async function listAttachments(uid: number, folder = "INBOX", account?: s
   try {
     await client.connect();
     await client.mailboxOpen(folder, { readOnly: true });
-    const msg = await client.fetchOne(String(uid), { bodyStructure: true }, { uid: true });
+    const msg = await client.fetchOne(String(uid), { bodyStructure: true }, { uid: true }) as any;
     await client.logout();
     if (!msg?.bodyStructure) return [];
     return extractAttachmentList(msg.bodyStructure);
@@ -411,7 +416,7 @@ export async function downloadAttachment(
     await client.mailboxOpen(folder, { readOnly: true });
 
     // First get the attachment metadata
-    const meta = await client.fetchOne(String(uid), { bodyStructure: true }, { uid: true });
+    const meta = await client.fetchOne(String(uid), { bodyStructure: true }, { uid: true }) as any;
     const attachments = meta?.bodyStructure ? extractAttachmentList(meta.bodyStructure) : [];
     const attachment = attachments.find((a) => a.id === attachmentId);
     const filename = attachment?.filename ?? `attachment-${attachmentId}`;
@@ -483,6 +488,321 @@ export async function searchEmailsByType(query: string, type: string, folder = "
     else console.error("Account error:", r.reason?.message);
   }
   return all.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+// ── Mailbox statistics ────────────────────────────────────────────────────────
+
+export interface FolderStats {
+  name: string;
+  total: number;
+  unread: number;
+}
+
+export interface MailboxStats {
+  account: string;
+  folders: FolderStats[];
+  totalMessages: number;
+  totalUnread: number;
+  inbox: {
+    today: number;
+    thisWeek: number;
+    thisMonth: number;
+    topSenders: { address: string; count: number }[];
+  };
+}
+
+export async function getMailboxStats(account?: string): Promise<MailboxStats> {
+  const accountKey = account ?? loadConfig().default;
+  const acc = getAccount(account);
+  const client = await createClient(accountKey, acc);
+
+  try {
+    await client.connect();
+    const folders = await client.list();
+
+    // Get message/unread counts for every folder via STATUS
+    const folderStats: FolderStats[] = [];
+    for (const folder of folders) {
+      try {
+        const status = await client.status(folder.path, { messages: true, unseen: true });
+        folderStats.push({
+          name: folder.path,
+          total: status.messages ?? 0,
+          unread: status.unseen ?? 0,
+        });
+      } catch {
+        // Some folders (e.g. [Gmail]/All Mail) may not support STATUS — skip
+      }
+    }
+
+    const totalMessages = folderStats.reduce((s, f) => s + f.total, 0);
+    const totalUnread   = folderStats.reduce((s, f) => s + f.unread, 0);
+
+    // For INBOX: count emails by time period + top senders
+    const now   = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const week  = new Date(today); week.setDate(today.getDate() - 7);
+    const month = new Date(today); month.setDate(1);
+
+    let todayCount = 0, weekCount = 0, monthCount = 0;
+    const senderMap: Record<string, number> = {};
+
+    try {
+      await client.mailboxOpen("INBOX", { readOnly: true });
+      const rawUids = await client.search({ since: month }, { uid: true });
+      const uids = rawUids === false ? [] : rawUids;
+
+      if (uids.length > 0) {
+        for await (const msg of client.fetch(uids, { uid: true, envelope: true }, { uid: true })) {
+          if (!msg.envelope) continue;
+          const date = msg.envelope.date ?? new Date(0);
+          if (date >= today)  todayCount++;
+          if (date >= week)   weekCount++;
+          monthCount++;
+
+          const addr = msg.envelope.from?.[0]?.address ?? "unknown";
+          senderMap[addr] = (senderMap[addr] ?? 0) + 1;
+        }
+      }
+    } catch {
+      // INBOX might be empty or unavailable
+    }
+
+    const topSenders = Object.entries(senderMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([address, count]) => ({ address, count }));
+
+    await client.logout();
+    return {
+      account: accountKey,
+      folders: folderStats,
+      totalMessages,
+      totalUnread,
+      inbox: { today: todayCount, thisWeek: weekCount, thisMonth: monthCount, topSenders },
+    };
+  } catch (err) {
+    try { await client.logout(); } catch {}
+    wrapError(err, acc.imap.host);
+  }
+}
+
+// ── Contact history ───────────────────────────────────────────────────────────
+
+export interface ContactEmail {
+  uid: number;
+  folder: string;
+  subject: string;
+  from: string;
+  to: string;
+  date: string;
+  seen: boolean;
+  direction: "received" | "sent";
+}
+
+export async function getContactHistory(
+  email: string,
+  account?: string,
+  limit = 50
+): Promise<{ emails: ContactEmail[]; stats: { total: number; firstContact: string; lastContact: string; sent: number; received: number } }> {
+  const accountKey = account ?? loadConfig().default;
+  const acc = getAccount(account);
+  const client = await createClient(accountKey, acc);
+
+  try {
+    await client.connect();
+
+    // Find INBOX and Sent folder
+    const folders = await client.list();
+    const sentFolder = folders.find(
+      (f) => f.specialUse === "\\Sent" || /^(Sent|Sent Items|Sent Mail)$/i.test(f.name)
+    );
+    const foldersToSearch = ["INBOX", ...(sentFolder ? [sentFolder.path] : [])];
+
+    const results: ContactEmail[] = [];
+    const emailLower = email.toLowerCase();
+
+    for (const folder of foldersToSearch) {
+      try {
+        await client.mailboxOpen(folder, { readOnly: true });
+
+        // Search for emails FROM this address
+        const rawFrom = await client.search({ from: email }, { uid: true }).catch(() => false as false);
+        const rawTo   = await client.search({ to: email },   { uid: true }).catch(() => false as false);
+        const fromUids = rawFrom === false ? [] : rawFrom;
+        const toUids   = rawTo   === false ? [] : rawTo;
+
+        const allUids = [...new Set([...fromUids, ...toUids])];
+        if (allUids.length === 0) continue;
+
+        for await (const msg of client.fetch(allUids, { uid: true, flags: true, envelope: true }, { uid: true })) {
+          if (!msg.envelope || !msg.flags) continue;
+          const fromAddr = msg.envelope.from?.[0]?.address?.toLowerCase() ?? "";
+          const toAddrs  = (msg.envelope.to ?? []).map((a) => a.address?.toLowerCase() ?? "");
+          const fromFull = msg.envelope.from?.[0]
+            ? `${msg.envelope.from[0].name ?? ""} <${msg.envelope.from[0].address}>`.trim()
+            : "";
+          const toFull = (msg.envelope.to ?? []).map((a) => `${a.name ?? ""} <${a.address}>`.trim()).join(", ");
+
+          const isSent     = fromAddr === acc.imap.user.toLowerCase() ||
+                             folder === (sentFolder?.path ?? "");
+          const isRelevant = fromAddr === emailLower || toAddrs.some((a) => a === emailLower);
+          if (!isRelevant) continue;
+
+          results.push({
+            uid: msg.uid,
+            folder,
+            subject: msg.envelope.subject ?? "(no subject)",
+            from: fromFull,
+            to: toFull,
+            date: msg.envelope.date?.toISOString() ?? "",
+            seen: msg.flags.has("\\Seen"),
+            direction: isSent ? "sent" : "received",
+          });
+        }
+      } catch {
+        // Skip inaccessible folders
+      }
+    }
+
+    await client.logout();
+
+    const sorted = results.sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit);
+    const sent     = sorted.filter((e) => e.direction === "sent").length;
+    const received = sorted.filter((e) => e.direction === "received").length;
+    const dates    = sorted.map((e) => e.date).filter(Boolean).sort();
+
+    return {
+      emails: sorted,
+      stats: {
+        total:        sorted.length,
+        firstContact: dates[0]       ?? "",
+        lastContact:  dates[dates.length - 1] ?? "",
+        sent,
+        received,
+      },
+    };
+  } catch (err) {
+    try { await client.logout(); } catch {}
+    wrapError(err, acc.imap.host);
+  }
+}
+
+// ── Drafts ────────────────────────────────────────────────────────────────────
+
+export interface DraftSummary {
+  uid: number;
+  subject: string;
+  to: string;
+  date: string;
+}
+
+async function findDraftsFolder(client: ImapFlow): Promise<string> {
+  const folders = await client.list();
+  const drafts = folders.find(
+    (f) => f.specialUse === "\\Drafts" || /^(Drafts?|Draft Items)$/i.test(f.name)
+  );
+  if (!drafts) throw new Error("Drafts folder not found on this server.");
+  return drafts.path;
+}
+
+/** Build a minimal RFC 2822 message suitable for saving as a draft */
+function buildRawMessage(opts: {
+  from: string; to: string; subject: string;
+  text: string; cc?: string; date?: Date;
+}): Buffer {
+  const date = (opts.date ?? new Date()).toUTCString();
+  const lines = [
+    `From: ${opts.from}`,
+    `To: ${opts.to}`,
+    ...(opts.cc ? [`Cc: ${opts.cc}`] : []),
+    `Subject: ${opts.subject}`,
+    `Date: ${date}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: text/plain; charset=utf-8`,
+    `Content-Transfer-Encoding: 8bit`,
+    ``,
+    opts.text,
+  ];
+  return Buffer.from(lines.join("\r\n"), "utf8");
+}
+
+export async function listDrafts(account?: string): Promise<DraftSummary[]> {
+  const accountKey = account ?? loadConfig().default;
+  const acc = getAccount(account);
+  const client = await createClient(accountKey, acc);
+
+  try {
+    await client.connect();
+    const draftsPath = await findDraftsFolder(client);
+    await client.mailboxOpen(draftsPath, { readOnly: true });
+
+    const results: DraftSummary[] = [];
+    for await (const msg of client.fetch("1:*", { uid: true, flags: true, envelope: true })) {
+      if (!msg.envelope || !msg.flags) continue;
+      if (!msg.flags.has("\\Draft") && !draftsPath.toLowerCase().includes("draft")) continue;
+      const to = (msg.envelope.to ?? []).map((a) => a.address ?? "").join(", ");
+      results.push({
+        uid: msg.uid,
+        subject: msg.envelope.subject ?? "(no subject)",
+        to,
+        date: msg.envelope.date?.toISOString() ?? "",
+      });
+    }
+
+    await client.logout();
+    return results.reverse();
+  } catch (err) {
+    try { await client.logout(); } catch {}
+    wrapError(err, acc.imap.host);
+  }
+}
+
+export async function createDraft(opts: {
+  to: string; subject: string; text: string;
+  cc?: string; account?: string;
+}): Promise<{ uid: number | null; folder: string }> {
+  const accountKey = opts.account ?? loadConfig().default;
+  const acc = getAccount(opts.account);
+  const client = await createClient(accountKey, acc);
+
+  try {
+    await client.connect();
+    const draftsPath = await findDraftsFolder(client);
+
+    const raw = buildRawMessage({
+      from: `${acc.smtp?.fromName ? acc.smtp.fromName + " " : ""}<${acc.imap.user}>`,
+      to: opts.to,
+      subject: opts.subject,
+      text: opts.text,
+      cc: opts.cc,
+    });
+
+    const result = await client.append(draftsPath, raw, ["\\Draft", "\\Seen"]);
+    await client.logout();
+    return { uid: (result as any)?.uid ?? null, folder: draftsPath };
+  } catch (err) {
+    try { await client.logout(); } catch {}
+    wrapError(err, acc.imap.host);
+  }
+}
+
+export async function deleteDraft(uid: number, account?: string): Promise<void> {
+  const accountKey = account ?? loadConfig().default;
+  const acc = getAccount(account);
+  const client = await createClient(accountKey, acc);
+
+  try {
+    await client.connect();
+    const draftsPath = await findDraftsFolder(client);
+    await client.mailboxOpen(draftsPath);
+    await client.messageFlagsAdd(String(uid), ["\\Deleted"], { uid: true });
+    await client.messageDelete(String(uid), { uid: true });
+    await client.logout();
+  } catch (err) {
+    try { await client.logout(); } catch {}
+    wrapError(err, acc.imap.host);
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -16,11 +16,11 @@ export async function handleListAccounts() {
 
     return {
       content: [{
-        type: "text",
+        type: "text" as const,
         text: `Configured accounts (default: "${config.default}"):\n\n${lines.join("\n")}${typesSummary}`,
       }],
     };
   } catch (err: any) {
-    return { content: [{ type: "text", text: `Error: ${err?.message ?? String(err)}` }], isError: true };
+    return { content: [{ type: "text" as const, text: `Error: ${err?.message ?? String(err)}` }], isError: true };
   }
 }
