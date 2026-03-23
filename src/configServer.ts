@@ -294,6 +294,10 @@ const HTML = `<!DOCTYPE html>
           <label class="checkbox-row"><input type="checkbox" id="f-smtp-tls" checked/> Use TLS/SSL</label>
         </div>
       </div>
+      <div class="form-group">
+        <label>HTML Signature <span style="color:#64748b;font-weight:400">(optional — appended to every outgoing email)</span></label>
+        <textarea id="f-smtp-signature" rows="4" style="background:#0f1117;border:1px solid #2d3148;border-radius:8px;color:#e2e8f0;padding:8px 12px;font-size:.82rem;width:100%;outline:none;resize:vertical;font-family:monospace;transition:border-color .15s" placeholder="&lt;p&gt;Best regards,&lt;br&gt;&lt;strong&gt;Your Name&lt;/strong&gt;&lt;/p&gt;"></textarea>
+      </div>
 
       <!-- OAuth2 section (Gmail / Office365 / Exchange) -->
       <div id="oauth2-section" style="display:none">
@@ -600,6 +604,7 @@ const HTML = `<!DOCTYPE html>
           <div class="info-grid">
             <div>IMAP</div><div><span>\${acc.imap.user}</span> @ \${acc.imap.host}:\${acc.imap.port}</div>
             <div>SMTP</div><div><span>\${acc.smtp.user}</span> @ \${acc.smtp.host}:\${acc.smtp.port}</div>
+            \${acc.smtp.signature ? '<div>Signature</div><div><span style="color:#4ade80">✓ configured</span></div>' : ''}
           </div>
         </div>\`;
       }).join('');
@@ -629,6 +634,7 @@ const HTML = `<!DOCTYPE html>
         document.getElementById('f-smtp-pass').value  = acc.smtp.password||'';
         document.getElementById('f-smtp-tls').checked = acc.smtp.tls;
         document.getElementById('f-smtp-fromname').value = acc.smtp.fromName||'';
+        document.getElementById('f-smtp-signature').value = acc.smtp.signature||'';
         document.getElementById('f-is-default').checked  = key === config.default;
         if (acc.oauth2) {
           document.getElementById('f-oauth-clientid').value = acc.oauth2.clientId||'';
@@ -640,7 +646,7 @@ const HTML = `<!DOCTYPE html>
         selectProvider('generic');
         document.getElementById('f-key').disabled = false;
         ['f-key','f-name','f-type','f-imap-host','f-imap-user','f-imap-pass',
-         'f-smtp-host','f-smtp-user','f-smtp-pass','f-smtp-fromname',
+         'f-smtp-host','f-smtp-user','f-smtp-pass','f-smtp-fromname','f-smtp-signature',
          'f-oauth-clientid','f-oauth-secret','f-oauth-refresh','f-oauth-tenantid']
           .forEach(id => document.getElementById(id).value='');
         document.getElementById('f-imap-port').value = '993';
@@ -684,6 +690,7 @@ const HTML = `<!DOCTYPE html>
           password: document.getElementById('f-smtp-pass').value,
           tls: document.getElementById('f-smtp-tls').checked,
           fromName: document.getElementById('f-smtp-fromname').value.trim()||undefined,
+          signature: document.getElementById('f-smtp-signature').value.trim()||undefined,
         },
       };
       if (document.getElementById('f-is-default').checked || !config.default) config.default = key;

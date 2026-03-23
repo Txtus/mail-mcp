@@ -19,6 +19,7 @@ export interface SmtpConfig {
   password: string;
   tls: boolean;
   fromName?: string;
+  signature?: string;   // HTML signature appended to every outgoing email
 }
 
 export type AccountProvider = "generic" | "gmail" | "office365" | "exchange";
